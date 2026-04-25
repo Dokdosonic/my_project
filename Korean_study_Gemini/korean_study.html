@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>문학독해 — 국어 작품 분석 학습 (Gemini)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=Noto+Sans+KR:wght@300;400;500&display=swap');
+</style>
+<style>
+:root {
+  --ink: #1a1714;
+  --ink-mid: #4a4540;
+  --ink-light: #9a928a;
+  --paper: #f7f4ef;
+  --paper-warm: #ede9e1;
+  --paper-border: #d8d0c4;
+  --accent: #8b3a2a;
+  --accent-light: #f0e8e5;
+  --success: #2d6a4f;
+  --success-bg: #eaf4ef;
+  --danger: #9b2c2c;
+  --danger-bg: #fdf0f0;
+  --radius: 4px;
+  --radius-lg: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans KR', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; line-height: 1.7; }
+
+.page-header {
+  border-bottom: 1px solid var(--paper-border);
+  padding: 24px 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  background: #fff;
+}
+.logo { font-family: 'Noto Serif KR', serif; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.logo span { color: var(--accent); }
+.logo-sub { font-size: 11px; color: var(--ink-light); font-weight: 300; margin-top: 2px; letter-spacing: 0.08em; }
+
+.container { max-width: 800px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* steps */
+.steps { display: flex; margin-bottom: 36px; border: 1px solid var(--paper-border); border-radius: var(--radius-lg); overflow: hidden; background: #fff; }
+.step { flex: 1; padding: 14px 12px; text-align: center; cursor: pointer; border-right: 1px solid var(--paper-border); transition: background 0.15s; position: relative; }
+.step:last-child { border-right: none; }
+.step-num { font-size: 10px; color: var(--ink-light); letter-spacing: 0.1em; margin-bottom: 2px; }
+.step-name { font-size: 13px; color: var(--ink-mid); }
+.step.active { background: var(--ink); }
+.step.active .step-num { color: rgba(255,255,255,0.45); }
+.step.active .step-name { color: #fff; font-weight: 500; }
+.step.done .step-name { color: var(--success); }
+.step.done::after { content: '✓'; position: absolute; top: 10px; right: 10px; font-size: 10px; color: var(--success); }
+
+.panel { display: none; animation: fadeIn 0.22s ease; }
+.panel.visible { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+.sec-title { font-family: 'Noto Serif KR', serif; font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+.sec-desc { font-size: 13px; color: var(--ink-light); margin-bottom: 26px; }
+
+/* form */
+.field { margin-bottom: 16px; }
+.field-label { font-size: 11px; letter-spacing: 0.08em; color: var(--ink-light); font-weight: 500; margin-bottom: 6px; }
+input[type="text"], input[type="password"], select {
+  width: 100%; font-family: 'Noto Sans KR', sans-serif; font-size: 14px;
+  color: var(--ink); background: #fff; border: 1px solid var(--paper-border);
+  border-radius: var(--radius); padding: 10px 14px; outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--ink-mid); }
+
+.input-row { display: flex; gap: 10px; }
+.input-row .field { flex: 1; margin-bottom: 0; }
+
+.notice {
+  background: var(--paper-warm); border: 1px solid var(--paper-border);
+  border-radius: var(--radius); padding: 12px 16px; font-size: 12px;
+  color: var(--ink-mid); line-height: 1.7; margin-bottom: 22px;
+}
+.notice code { font-family: 'Courier New', monospace; font-size: 11px; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; }
+
+.btn { font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 500; padding: 10px 22px; border-radius: var(--radius); cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--ink-mid); }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--ink-mid); border: 1px solid var(--paper-border); }
+.btn-ghost:hover { background: var(--paper-warm); }
+
+.loading { display: flex; align-items: center; gap: 14px; padding: 2rem 0; color: var(--ink-light); font-size: 14px; }
+.spinner { width: 18px; height: 18px; border: 1.5px solid var(--paper-border); border-top-color: var(--ink); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* poem display */
+.poem-box {
+  background: #fff;
+  border: 1px solid var(--paper-border);
+  border-radius: var(--radius-lg);
+  padding: 32px 36px;
+  margin-bottom: 28px;
+  position: relative;
+}
+.poem-box::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 20px; bottom: 20px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+.poem-title { font-family: 'Noto Serif KR', serif; font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.poem-author { font-size: 13px; color: var(--ink-light); margin-bottom: 22px; }
+.poem-body { font-family: 'Noto Serif KR', serif; font-size: 15px; line-height: 2.2; color: var(--ink-mid); white-space: pre-wrap; }
+
+/* analysis */
+.cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.acard { background: #fff; border: 1px solid var(--paper-border); border-radius: var(--radius); padding: 14px 16px; }
+.acard.full { grid-column: 1 / -1; }
+.acard-label { font-size: 10px; letter-spacing: 0.1em; color: var(--accent); font-weight: 500; margin-bottom: 6px; }
+.acard-val { font-size: 14px; color: var(--ink); line-height: 1.75; }
+
+.divider { border: none; border-top: 1px solid var(--paper-border); margin: 26px 0; }
+.action-row { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* quiz */
+.q-block { background: #fff; border: 1px solid var(--paper-border); border-radius: var(--radius-lg); padding: 20px 22px; margin-bottom: 12px; }
+.q-meta { font-size: 11px; letter-spacing: 0.08em; color: var(--ink-light); margin-bottom: 8px; }
+.q-text { font-size: 15px; color: var(--ink); margin-bottom: 16px; line-height: 1.65; }
+.opts { display: flex; flex-direction: column; gap: 7px; }
+.opt-btn {
+  text-align: left; padding: 10px 14px; font-size: 13px;
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--paper-warm); color: var(--ink);
+  border: 1px solid transparent; border-radius: var(--radius);
+  cursor: pointer; transition: all 0.12s; line-height: 1.5;
+}
+.opt-btn:hover:not(:disabled) { background: var(--paper-border); }
+.opt-btn:disabled { cursor: default; }
+.opt-btn.correct { background: var(--success-bg); border-color: #7abf9e; color: var(--success); }
+.opt-btn.wrong { background: var(--danger-bg); border-color: #e8a0a0; color: var(--danger); }
+.opt-btn.reveal-correct { background: var(--success-bg); border-color: #7abf9e; color: var(--success); opacity: 0.65; }
+.q-explain { font-size: 12px; color: var(--ink-light); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--paper-border); display: none; line-height: 1.7; }
+.q-explain.visible { display: block; }
+.ox-row { display: flex; gap: 12px; margin-top: 4px; }
+.ox-btn {
+  flex: 1; padding: 18px 0; font-size: 32px; font-weight: 700;
+  border: 2px solid var(--paper-border); border-radius: var(--radius-lg);
+  background: var(--paper-warm); cursor: pointer; transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+.ox-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.ox-btn:disabled { cursor: default; transform: none; box-shadow: none; }
+.ox-btn.o-btn { color: #2563eb; }
+.ox-btn.x-btn { color: #dc2626; }
+.ox-btn.correct { background: var(--success-bg); border-color: #7abf9e; }
+.ox-btn.wrong   { background: var(--danger-bg);  border-color: #e8a0a0; }
+.ox-btn.reveal-correct { background: var(--success-bg); border-color: #7abf9e; opacity: 0.6; }
+.q-statement { font-size: 15px; color: var(--ink); line-height: 1.7; margin-bottom: 16px; padding: 14px 16px; background: var(--paper-warm); border-radius: var(--radius); border-left: 3px solid var(--accent); }
+
+/* result */
+.score-card { background: var(--ink); color: #fff; border-radius: var(--radius-lg); padding: 40px 32px; text-align: center; margin-bottom: 28px; }
+.score-big { font-family: 'Noto Serif KR', serif; font-size: 58px; font-weight: 600; line-height: 1; margin-bottom: 8px; }
+.score-label { font-size: 13px; color: rgba(255,255,255,0.45); }
+.score-msg { font-size: 15px; color: rgba(255,255,255,0.8); margin-top: 12px; }
+.review-title { font-size: 12px; font-weight: 500; color: var(--ink-light); letter-spacing: 0.06em; margin-bottom: 12px; }
+.review-item { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--paper-border); font-size: 13px; line-height: 1.65; }
+.review-icon { flex-shrink: 0; font-size: 14px; margin-top: 1px; }
+.rc { color: var(--success); } .rw { color: var(--danger); }
+.review-q { color: var(--ink); margin-bottom: 3px; }
+.review-exp { color: var(--ink-light); font-size: 12px; }
+
+/* suggestions */
+.suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.sug-chip {
+  padding: 6px 14px; font-size: 12px; font-family: 'Noto Sans KR', sans-serif;
+  background: #fff; color: var(--ink-mid); border: 1px solid var(--paper-border);
+  border-radius: 20px; cursor: pointer; transition: all 0.12s;
+}
+.sug-chip:hover { background: var(--paper-warm); border-color: var(--ink-mid); }
+.sug-label { font-size: 12px; color: var(--ink-light); margin-top: 14px; margin-bottom: 6px; }
+
+.error-box { background: var(--danger-bg); border: 1px solid #e8a0a0; border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: var(--danger); margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div>
+    <div class="logo">문학<span>독해</span></div>
+    <div class="logo-sub">국어 작품 분석 학습 플랫폼 · Powered by Gemini</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div id="apiBadge" style="display:none;margin-bottom:14px;padding:9px 16px;border-radius:var(--radius);font-size:13px;display:none;align-items:center;gap:8px;"></div>
+  <div class="steps">
+    <div class="step active" id="tab1" onclick="goTab(1)">
+      <div class="step-num">STEP 01</div>
+      <div class="step-name">작품 검색</div>
+    </div>
+    <div class="step" id="tab2" onclick="goTab(2)">
+      <div class="step-num">STEP 02</div>
+      <div class="step-name">시 & 분석</div>
+    </div>
+    <div class="step" id="tab3" onclick="goTab(3)">
+      <div class="step-num">STEP 03</div>
+      <div class="step-name">문제 풀기</div>
+    </div>
+    <div class="step" id="tab4" onclick="goTab(4)">
+      <div class="step-num">STEP 04</div>
+      <div class="step-name">결과 확인</div>
+    </div>
+  </div>
+
+  <!-- panel 1: 검색 -->
+  <div class="panel visible" id="p1">
+    <div class="sec-title">작품을 검색하세요</div>
+    <div class="sec-desc">시 제목과 시인 이름을 입력하면 시 전문과 분석을 자동으로 제공합니다.</div>
+
+    <div class="notice">
+      Google Gemini API 키를 입력하면 실제 AI가 시를 불러와 분석합니다.<br>
+      키가 없으면 시 검색이 동작하지 않습니다. <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent);">무료 키 발급 →</a>
+    </div>
+
+    <div class="field">
+      <div class="field-label">GOOGLE GEMINI API KEY</div>
+      <div style="position:relative;">
+        <input type="password" id="apiKeyInput" placeholder="AIza..." style="padding-right:80px;">
+        <button onclick="saveApiKey()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:5px 12px;font-size:12px;font-family:var(--font-sans, sans-serif);font-weight:500;background:var(--ink);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;" id="saveBtn">저장</button>
+      </div>
+      <div id="keyStatus" style="font-size:12px;margin-top:5px;color:var(--ink-light);"></div>
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <div class="field-label">사용할 모델 (선택 — 비워두면 자동)</div>
+      <select id="geminiModel" style="width:100%;">
+        <option value="">자동 선택</option>
+        <option value="gemini-2.5-flash">gemini-2.5-flash (권장 · 빠름)</option>
+        <option value="gemini-2.5-pro">gemini-2.5-pro (고성능)</option>
+        <option value="gemini-2.0-flash">gemini-2.0-flash (안정적)</option>
+        <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (가벼움)</option>
+      </select>
+    </div>
+
+
+    <div id="apiError" style="display:none;background:var(--danger-bg);border:1px solid #e8a0a0;border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--danger);margin-bottom:16px;"></div>
+    <div class="input-row">
+      <div class="field">
+        <div class="field-label">시 제목</div>
+        <input type="text" id="poemTitle" placeholder="예) 진달래꽃, 향수, 청포도">
+      </div>
+      <div class="field">
+        <div class="field-label">시인</div>
+        <input type="text" id="poemAuthor" placeholder="예) 김소월, 정지용, 이육사">
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+      <button class="btn btn-primary" onclick="runSearch()">시 불러오기 →</button>
+    </div>
+
+    <div class="sug-label">자주 찾는 작품</div>
+    <div class="suggestions">
+      <div class="sug-chip" onclick="fillAndSearch('진달래꽃','김소월')">진달래꽃 · 김소월</div>
+      <div class="sug-chip" onclick="fillAndSearch('향수','정지용')">향수 · 정지용</div>
+      <div class="sug-chip" onclick="fillAndSearch('청포도','이육사')">청포도 · 이육사</div>
+      <div class="sug-chip" onclick="fillAndSearch('광야','이육사')">광야 · 이육사</div>
+      <div class="sug-chip" onclick="fillAndSearch('님의 침묵','한용운')">님의 침묵 · 한용운</div>
+      <div class="sug-chip" onclick="fillAndSearch('서시','윤동주')">서시 · 윤동주</div>
+      <div class="sug-chip" onclick="fillAndSearch('봄봄','김유정')">봄봄 · 김유정</div>
+      <div class="sug-chip" onclick="fillAndSearch('국화 옆에서','서정주')">국화 옆에서 · 서정주</div>
+    </div>
+  </div>
+
+  <!-- panel 2: 시 + 분석 -->
+  <div class="panel" id="p2">
+    <div id="poemAnalysisContent"></div>
+  </div>
+
+  <!-- panel 3: 문제 -->
+  <div class="panel" id="p3">
+    <div id="quizContent"></div>
+  </div>
+
+  <!-- panel 4: 결과 -->
+  <div class="panel" id="p4">
+    <div id="resultContent"></div>
+    <div class="action-row" style="margin-top: 28px;">
+      <button class="btn btn-ghost" onclick="restart()">새 작품 검색하기</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── API 키 설정 ──────────────────────────────────────────
+// 여기에 Anthropic API 키를 입력하세요
+let _apiKey = "";
+
+function saveApiKey() {
+  const val = document.getElementById("apiKeyInput").value.trim();
+  if (!val) {
+    document.getElementById("keyStatus").textContent = "키를 입력해주세요.";
+    document.getElementById("keyStatus").style.color = "var(--danger)";
+    return;
+  }
+  _apiKey = val;
+  document.getElementById("saveBtn").textContent = "저장됨 ✓";
+  document.getElementById("saveBtn").style.background = "var(--success)";
+  document.getElementById("keyStatus").textContent = "API 키가 저장되었습니다. 시 검색을 시작하세요!";
+  document.getElementById("keyStatus").style.color = "var(--success)";
+  updateBadge(true);
+  setTimeout(() => {
+    document.getElementById("saveBtn").textContent = "저장";
+    document.getElementById("saveBtn").style.background = "var(--ink)";
+  }, 2000);
+}
+
+function updateBadge(isApi) {
+  const badge = document.getElementById("apiBadge");
+  if (isApi) {
+    badge.style.display = "flex";
+    badge.style.background = "var(--success-bg)";
+    badge.style.border = "1px solid #7abf9e";
+    badge.style.color = "var(--success)";
+    badge.innerHTML = `<span style="font-size:16px;">●</span> AI 모드 — Gemini API로 실제 분석 중`;
+  } else {
+    badge.style.display = "none";
+  }
+}
+// ─────────────────────────────────────────────────────────
+
+let poemData = null;
+let analysisData = null;
+let quizData = [];
+let answers = {};
+
+function goTab(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('p' + i).classList.remove('visible');
+    document.getElementById('tab' + i).classList.remove('active');
+  }
+  document.getElementById('p' + n).classList.add('visible');
+  document.getElementById('tab' + n).classList.add('active');
+}
+
+function fillAndSearch(title, author) {
+  document.getElementById('poemTitle').value = title;
+  document.getElementById('poemAuthor').value = author;
+  runSearch();
+}
+
+async function callGemini(prompt, maxTokens = 4096) {
+  const apiKey = _apiKey;
+  if (!apiKey) {
+    showErr("Gemini API 키가 입력되지 않았습니다. 상단 API KEY 입력란에 키를 저장해주세요.");
+    return null;
+  }
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-preview-04-17",
+    "gemini-2.5-pro",
+    "gemini-2.5-pro-preview-03-25",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite"
+  ];
+  const selectedModel = document.getElementById("geminiModel")?.value?.trim();
+  const modelList = selectedModel ? [selectedModel, ...models.filter(m => m !== selectedModel)] : models;
+
+  for (const model of modelList) {
+    try {
+      console.log(`[Gemini] 시도: ${model}`);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          mode: "cors",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: maxTokens, temperature: 0.2 }
+          })
+        }
+      );
+
+      const data = await res.json();
+      console.log(`[Gemini] ${model} 응답:`, JSON.stringify(data).slice(0, 300));
+
+      if (!res.ok) {
+        const code = data?.error?.code || res.status;
+        const msg = data?.error?.message || res.statusText;
+        if (code === 404 || code === 400 && msg.includes("not found")) { continue; }
+        showErr(`Gemini 오류 (${model} ${code}): ${msg}`);
+        return null;
+      }
+
+      // 응답 구조 체크
+      const candidate = data?.candidates?.[0];
+      if (!candidate) {
+        console.warn(`[Gemini] ${model}: candidates 없음`, data);
+        continue;
+      }
+      // SAFETY / RECITATION 등 차단 여부 확인
+      const finishReason = candidate.finishReason;
+      if (finishReason === "SAFETY" || finishReason === "RECITATION") {
+        showErr(`Gemini 안전 필터에 의해 차단되었습니다 (${finishReason}). 다른 작품을 시도해보세요.`);
+        return null;
+      }
+      const text = candidate?.content?.parts?.map(p => p.text || "").join("").trim();
+      if (text) {
+        console.log(`[Gemini] ${model} 성공, 길이: ${text.length}`);
+        return text;
+      }
+      console.warn(`[Gemini] ${model}: text 비어있음`, candidate);
+      continue;
+    } catch (e) {
+      console.error(`[Gemini] ${model} 예외:`, e);
+      if (e.name === "TypeError" && e.message.includes("fetch")) {
+        showErr("네트워크 오류: 인터넷 연결 또는 CORS 문제입니다. (" + e.message + ")");
+        return null;
+      }
+      continue;
+    }
+  }
+  showErr("사용 가능한 모델이 없습니다. API 키가 올바른지, 할당량이 남아 있는지 확인해주세요.");
+  return null;
+}
+
+// 하위 호환 alias
+async function callClaude(prompt) { return callGemini(prompt); }
+
+function showErr(msg) {
+  const el = document.getElementById('apiError');
+  if (el) { el.textContent = "⚠ " + msg; el.style.display = 'block'; }
+}
+
+async function runSearch() {
+  const title = document.getElementById('poemTitle').value.trim();
+  const author = document.getElementById('poemAuthor').value.trim();
+  if (!title || !author) { alert('시 제목과 시인을 모두 입력해주세요.'); return; }
+
+  const errEl = document.getElementById('apiError'); if(errEl) errEl.style.display='none';
+  document.getElementById('tab1').classList.add('done');
+  goTab(2);
+  document.getElementById('poemAnalysisContent').innerHTML = `<div class="loading"><div class="spinner"></div>${author}의 「${title}」을(를) 불러오는 중...</div>`;
+
+  let result = null;
+  let usedApi = false;
+
+  function parseJSON(raw) {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw.replace(/^```(?:json)?\s*/,'').replace(/\s*```\s*$/,'').trim());
+    } catch(e) {
+      const m = raw.match(/[\[{][\s\S]*[\]\}]/);
+      if (m) { try { return JSON.parse(m[0]); } catch(e2) {} }
+    }
+    return null;
+  }
+
+  // ── 1단계: 시 전문 ──
+  document.getElementById('poemAnalysisContent').innerHTML = `<div class="loading"><div class="spinner"></div>1/2 「${title}」 시 전문 불러오는 중...</div>`;
+  const poemPrompt = `다음 한국 시의 정보를 JSON으로만 출력하세요. JSON만, 백틱 없이 출력하세요.
+작품: 「${title}」 / 시인: ${author}
+{"title":"제목","author":"시인","year":"발표연도","collection":"수록 시집","poem":"시 전문 원문(연 사이 빈줄, 행 구분 줄바꿈)"}`;
+
+  const rawPoem = await callGemini(poemPrompt, 2048);
+  const poemPart = parseJSON(rawPoem);
+  if (!poemPart || !poemPart.poem) {
+    result = null;
+  } else {
+    usedApi = true;
+    // ── 2단계: 분석 ──
+    document.getElementById('poemAnalysisContent').innerHTML = `<div class="loading"><div class="spinner"></div>2/2 작품 분석 중...</div>`;
+    const analysisPrompt = `다음 한국 시를 분석해 JSON으로만 출력하세요. JSON만, 백틱 없이 출력하세요.
+작품: 「${title}」 / 시인: ${author}
+{"theme":"주제 2문장","structure":"연·행 구성 및 형식","literary_devices":"주요 표현기법 3가지","tone":"어조 및 분위기","background":"창작 배경 및 시대적 맥락","summary":"핵심 해설 3문장"}`;
+
+    const rawAnalysis = await callGemini(analysisPrompt, 2048);
+    const analysisPart = parseJSON(rawAnalysis);
+
+    result = {
+      ...poemPart,
+      ...(analysisPart || { theme:'', structure:'', literary_devices:'', tone:'', background:'', summary:'' })
+    };
+  }
+
+  if (!result) {
+    // API 키 없거나 응답 실패 시 — 예시 없이 안내만 표시
+    document.getElementById('poemAnalysisContent').innerHTML = `
+      <div class="error-box" style="line-height:1.9;">
+        ⚠ 「${title}」(${author}) 작품을 불러오지 못했습니다.<br>
+        <strong>Gemini API 키를 입력하고 저장한 뒤 다시 시도해주세요.</strong><br>
+        <span style="font-size:12px;opacity:0.8;">키가 없으면 <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--danger);">Google AI Studio</a>에서 무료로 발급받을 수 있습니다.</span>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-ghost" onclick="goTab(1)">← 다시 검색</button>
+      </div>
+    `;
+    document.getElementById('tab1').classList.remove('done');
+    document.getElementById('tab2').classList.remove('done', 'active');
+    return;
+  }
+
+  if (result.error) {
+    document.getElementById('poemAnalysisContent').innerHTML = `
+      <div class="error-box">「${title}」(${author}) 작품을 찾을 수 없습니다. 제목이나 시인 이름을 다시 확인해주세요.</div>
+      <button class="btn btn-ghost" onclick="goTab(1)">← 다시 검색</button>
+    `;
+    return;
+  }
+
+  poemData = result;
+  analysisData = result;
+  updateBadge(usedApi);
+  renderPoemAndAnalysis(result);
+}
+
+function renderPoemAndAnalysis(d) {
+  document.getElementById('poemAnalysisContent').innerHTML = `
+    <div class="poem-box">
+      <div class="poem-title">${d.title}</div>
+      <div class="poem-author">${d.author} · ${d.year}${d.collection ? ' · ' + d.collection : ''}</div>
+      <div class="poem-body">${escHtml(d.poem)}</div>
+    </div>
+
+    <div class="cards-grid">
+      <div class="acard">
+        <div class="acard-label">어조 및 분위기</div>
+        <div class="acard-val">${d.tone}</div>
+      </div>
+      <div class="acard">
+        <div class="acard-label">표현 기법</div>
+        <div class="acard-val">${d.literary_devices}</div>
+      </div>
+      <div class="acard full">
+        <div class="acard-label">주제</div>
+        <div class="acard-val">${d.theme}</div>
+      </div>
+      <div class="acard full">
+        <div class="acard-label">구성 및 형식</div>
+        <div class="acard-val">${d.structure}</div>
+      </div>
+      <div class="acard full">
+        <div class="acard-label">창작 배경</div>
+        <div class="acard-val">${d.background}</div>
+      </div>
+      <div class="acard full">
+        <div class="acard-label">핵심 해설</div>
+        <div class="acard-val">${d.summary}</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+    <div class="action-row">
+      <button class="btn btn-ghost" onclick="goTab(1)">← 다시 검색</button>
+      <button class="btn btn-primary" onclick="runQuiz()">문제 생성 →</button>
+    </div>
+  `;
+  document.getElementById('tab2').classList.add('done');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function runQuiz() {
+  document.getElementById('tab2').classList.add('done');
+  goTab(3);
+  document.getElementById('quizContent').innerHTML = `<div class="loading"><div class="spinner"></div>문제를 생성하고 있습니다...</div>`;
+  answers = {};
+
+  let questions = null;
+  if (poemData) {
+    const quizPrompt = `다음 한국 시에 대한 O/X 퀴즈 6개를 JSON 배열로만 출력하세요. 배열만, 백틱 없이 출력하세요.
+작품: 「${poemData.title}」 / 시인: ${poemData.author}
+주제: ${poemData.theme}
+표현기법: ${poemData.literary_devices}
+어조: ${poemData.tone}
+구성: ${poemData.structure}
+[{"statement":"설명 문장","answer":true,"explanation":"해설"}, ...]
+조건: O 정답 3개, X 정답 3개. 주제·표현기법·어조·구조 골고루 출제.`;
+
+    const rawQ = await callGemini(quizPrompt, 2048);
+    if (rawQ) {
+      try {
+        const cleaned = rawQ.replace(/^```(?:json)?\s*/,'').replace(/\s*```\s*$/,'').trim();
+        questions = JSON.parse(cleaned);
+      } catch(e) {
+        const m = rawQ.match(/\[[\s\S]*\]/);
+        if (m) { try { questions = JSON.parse(m[0]); } catch(e2) {} }
+      }
+    }
+  }
+
+    if (!questions || questions.length === 0) {
+    document.getElementById('quizContent').innerHTML = `
+      <div class="error-box" style="line-height:1.9;">
+        ⚠ 문제를 생성하지 못했습니다.<br>
+        <strong>Gemini API 키를 확인하고 다시 시도해주세요.</strong>
+      </div>
+      <div class="action-row" style="margin-top:12px;">
+        <button class="btn btn-ghost" onclick="goTab(2)">← 분석 보기</button>
+        <button class="btn btn-primary" onclick="runQuiz()">다시 시도</button>
+      </div>
+    `;
+    return;
+  }
+
+  quizData = questions;
+  renderQuiz(questions);
+}
+
+function renderQuiz(qs) {
+  let html = `<div class="sec-title" style="margin-bottom:6px;">O / X 퀴즈</div>
+    <div class="sec-desc">각 설명이 맞으면 O, 틀리면 X를 누르세요.</div>`;
+  qs.forEach((q, i) => {
+    html += `<div class="q-block" id="qb${i}">
+      <div class="q-meta">문제 ${i + 1} / ${qs.length}</div>
+      <div class="q-statement">${q.statement}</div>
+      <div class="ox-row">
+        <button class="ox-btn o-btn" id="opt${i}_O" onclick="selectOX(${i}, true)">O</button>
+        <button class="ox-btn x-btn" id="opt${i}_X" onclick="selectOX(${i}, false)">X</button>
+      </div>
+      <div class="q-explain" id="exp${i}">${q.explanation}</div>
+    </div>`;
+  });
+  html += `<div class="action-row" style="margin-top:8px;">
+    <button class="btn btn-ghost" onclick="goTab(2)">← 분석 보기</button>
+    <button class="btn btn-primary" onclick="showResults()">채점하기 →</button>
+  </div>`;
+  document.getElementById('quizContent').innerHTML = html;
+}
+
+function selectOX(qi, chosen) {
+  const q = quizData[qi];
+  const oBtn = document.getElementById(`opt${qi}_O`);
+  const xBtn = document.getElementById(`opt${qi}_X`);
+  oBtn.disabled = true;
+  xBtn.disabled = true;
+  answers[qi] = chosen;
+  const correct = chosen === q.answer;
+  const chosenBtn = chosen ? oBtn : xBtn;
+  const correctBtn = q.answer ? oBtn : xBtn;
+  if (correct) {
+    chosenBtn.classList.add('correct');
+  } else {
+    chosenBtn.classList.add('wrong');
+    correctBtn.classList.add('reveal-correct');
+  }
+  document.getElementById(`exp${qi}`).classList.add('visible');
+}
+
+function showResults() {
+  let correct = 0;
+  quizData.forEach((q, i) => { if (answers[i] !== undefined && answers[i] === q.answer) correct++; });
+  const total = quizData.length;
+  const pct = Math.round((correct / total) * 100);
+  const msg = pct === 100 ? "완벽합니다! 작품을 완전히 이해했어요." :
+              pct >= 80  ? "훌륭합니다. 핵심 내용을 잘 파악했네요." :
+              pct >= 60  ? "잘 했어요. 틀린 문항을 다시 복습해보세요." :
+                           "분석 내용을 꼼꼼히 다시 읽어보세요.";
+
+  document.getElementById('tab3').classList.add('done');
+  document.getElementById('tab4').classList.add('done');
+  goTab(4);
+
+  let reviewHtml = '';
+  quizData.forEach((q, i) => {
+    const ok = answers[i] === q.answer;
+    reviewHtml += `<div class="review-item">
+      <div class="review-icon ${ok ? 'rc' : 'rw'}">${ok ? '✓' : '✗'}</div>
+      <div>
+        <div class="review-q">${q.statement || q.q}</div>
+        <div class="review-exp">정답: ${q.answer ? 'O (맞음)' : 'X (틀림)'} — ${q.explanation}</div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('resultContent').innerHTML = `
+    <div class="score-card">
+      <div class="score-big">${correct}<span style="font-size:28px;opacity:0.4"> / ${total}</span></div>
+      <div class="score-label">${pct}점</div>
+      <div class="score-msg">${msg}</div>
+    </div>
+    <div class="review-title">문항별 해설</div>
+    ${reviewHtml}
+  `;
+}
+
+function restart() {
+  poemData = null; analysisData = null; quizData = []; answers = {};
+  document.getElementById('poemTitle').value = '';
+  document.getElementById('poemAuthor').value = '';
+  for (let i = 1; i <= 4; i++) document.getElementById('tab' + i).classList.remove('done', 'active');
+  document.getElementById('tab1').classList.add('active');
+  goTab(1);
+}
+</script>
+</body>
+</html>
